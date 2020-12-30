@@ -14,6 +14,7 @@ from utils import prepare_device
 # fix random seeds for reproducibility
 SEED = 123
 torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 np.random.seed(SEED)
@@ -23,7 +24,8 @@ def main(config):
 
     # setup data_loader instances
     data_loader = config.init_obj('data_loader', module_data)
-    valid_data_loader = data_loader.split_validation()
+    valid_data_loader = data_loader.split_dataset(valid=True)
+    test_data_loader = data_loader.split_dataset(test=True)
 
     # build model architecture, then print to console
     model = config.init_obj('arch', module_arch)
@@ -53,6 +55,25 @@ def main(config):
 
     trainer.train()
 
+    """Test."""
+    logger = config.get_logger('test')
+    logger.info(model)
+    test_metrics = [getattr(module_metric, met) for met in config['metrics']]
+    
+    # load best checkpoint
+    resume = str(config.save_dir / 'model_best.pth')
+    logger.info('Loading checkpoint: {} ...'.format(resume))
+    checkpoint = torch.load(resume)
+    state_dict = checkpoint['state_dict']
+    model.load_state_dict(state_dict)
+
+    test_output = trainer.test()
+    log = {'loss': test_output['total_loss'] / test_output['n_samples']}
+    log.update({
+        met.__name__: test_output['total_metrics'][i].item() / test_output['n_samples'] \
+            for i, met in enumerate(test_metrics)
+    })
+    logger.info(log)
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
