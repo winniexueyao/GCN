@@ -8,13 +8,18 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, config):
+    def __init__(self, model, criterion, metric_fns, optimizer, config):
         self.config = config
         self.logger = config.get_logger('trainer', config['trainer']['verbosity'])
 
-        self.model = model
+        # setup GPU device if available, move model into configured device
+        self.device, device_ids = self._prepare_device(config['n_gpu'])
+        self.model = model.to(self.device)
+        if len(device_ids) > 1:
+            self.model = torch.nn.DataParallel(model, device_ids=device_ids)
+
         self.criterion = criterion
-        self.metric_ftns = metric_ftns
+        self.metric_fns = metric_fns
         self.optimizer = optimizer
 
         cfg_trainer = config['trainer']
@@ -27,13 +32,12 @@ class BaseTrainer:
             self.mnt_mode = 'off'
             self.mnt_best = 0
         else:
+            # mnt_mode determines minimum or maximum metrix is best, if we use loss, thus mnt_mode = min
             self.mnt_mode, self.mnt_metric = self.monitor.split()
             assert self.mnt_mode in ['min', 'max']
 
             self.mnt_best = inf if self.mnt_mode == 'min' else -inf
             self.early_stop = cfg_trainer.get('early_stop', inf)
-            if self.early_stop <= 0:
-                self.early_stop = inf
 
         self.start_epoch = 1
 
@@ -67,8 +71,12 @@ class BaseTrainer:
             log.update(result)
 
             # print logged informations to the screen
-            for key, value in log.items():
-                self.logger.info('    {:15s}: {}'.format(str(key), value))
+            self.logger.info('epoch: {}'.format(epoch))
+            for key in ['train', 'validation']:
+                if key not in log:
+                    continue
+                value_format = ''.join(['{:15s}: {:.2f}\t'.format(k, v) for k, v in log[key].items()])
+                self.logger.info('    {:15s}: {}'.format(str(key), value_format))
 
             # evaluate model performance according to configured metric, save best checkpoint as model_best
             best = False
@@ -87,6 +95,7 @@ class BaseTrainer:
                     self.mnt_best = log[self.mnt_metric]
                     not_improved_count = 0
                     best = True
+                    self._save_checkpoint(epoch, save_best=best)
                 else:
                     not_improved_count += 1
 
@@ -96,7 +105,24 @@ class BaseTrainer:
                     break
 
             if epoch % self.save_period == 0:
-                self._save_checkpoint(epoch, save_best=best)
+                self._save_checkpoint(epoch, save_best=False)
+
+    def _prepare_device(self, n_gpu_use):
+        """
+        setup GPU device if available, move model into configured device
+        """
+        n_gpu = torch.cuda.device_count()
+        if n_gpu_use > 0 and n_gpu == 0:
+            self.logger.warning("Warning: There\'s no GPU available on this machine,"
+                                "training will be performed on CPU.")
+            n_gpu_use = 0
+        if n_gpu_use > n_gpu:
+            self.logger.warning("Warning: The number of GPU\'s configured to use is {}, but only {} are available "
+                                "on this machine.".format(n_gpu_use, n_gpu))
+            n_gpu_use = n_gpu
+        device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
+        list_ids = list(range(n_gpu_use))
+        return device, list_ids
 
     def _save_checkpoint(self, epoch, save_best=False):
         """
@@ -115,13 +141,14 @@ class BaseTrainer:
             'monitor_best': self.mnt_best,
             'config': self.config
         }
-        filename = str(self.checkpoint_dir / 'checkpoint-epoch{}.pth'.format(epoch))
-        torch.save(state, filename)
-        self.logger.info("Saving checkpoint: {} ...".format(filename))
         if save_best:
             best_path = str(self.checkpoint_dir / 'model_best.pth')
             torch.save(state, best_path)
             self.logger.info("Saving current best: model_best.pth ...")
+        else:
+            filename = str(self.checkpoint_dir / 'checkpoint-epoch{}.pth'.format(epoch))
+            torch.save(state, filename)
+            self.logger.info("Saving checkpoint: {} ...".format(filename))
 
     def _resume_checkpoint(self, resume_path):
         """
