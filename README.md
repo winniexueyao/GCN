@@ -5,30 +5,32 @@ PyTorch deep learning project made easy.
 
 <!-- code_chunk_output -->
 
-* [PyTorch Template Project](#pytorch-template-project)
-	* [Requirements](#requirements)
-	* [Features](#features)
-	* [Folder Structure](#folder-structure)
-	* [Usage](#usage)
-		* [Config file format](#config-file-format)
-		* [Using config files](#using-config-files)
-		* [Resuming from checkpoints](#resuming-from-checkpoints)
-    * [Using Multiple GPU](#using-multiple-gpu)
-	* [Customization](#customization)
-		* [Custom CLI options](#custom-cli-options)
-		* [Data Loader](#data-loader)
-		* [Trainer](#trainer)
-		* [Model](#model)
-		* [Loss](#loss)
-		* [metrics](#metrics)
-		* [Additional logging](#additional-logging)
-		* [Validation data](#validation-data)
-		* [Checkpoints](#checkpoints)
-    * [Tensorboard Visualization](#tensorboard-visualization)
-	* [Contribution](#contribution)
-	* [TODOs](#todos)
-	* [License](#license)
-	* [Acknowledgements](#acknowledgements)
+- [PyTorch Template Project](#pytorch-template-project)
+  - [Requirements](#requirements)
+  - [Features](#features)
+  - [Folder Structure](#folder-structure)
+  - [Usage](#usage)
+    - [Config file format](#config-file-format)
+    - [Using config files](#using-config-files)
+    - [Resuming from checkpoints](#resuming-from-checkpoints)
+    - [Using Multiple GPU](#using-multiple-gpu)
+  - [Customization](#customization)
+    - [Project initialization](#project-initialization)
+    - [Custom CLI options](#custom-cli-options)
+    - [Data Loader](#data-loader)
+    - [Trainer](#trainer)
+    - [Model](#model)
+    - [Loss](#loss)
+    - [Metrics](#metrics)
+    - [Additional logging](#additional-logging)
+    - [Testing](#testing)
+    - [Validation data](#validation-data)
+    - [Checkpoints](#checkpoints)
+    - [Tensorboard Visualization](#tensorboard-visualization)
+  - [Contribution](#contribution)
+  - [TODOs](#todos)
+  - [License](#license)
+  - [Acknowledgements](#acknowledgements)
 
 <!-- /code_chunk_output -->
 
@@ -52,8 +54,7 @@ PyTorch deep learning project made easy.
   ```
   pytorch-template/
   │
-  ├── train.py - main script to start training
-  ├── test.py - evaluation of trained model
+  ├── train.py - main script to start training and testing
   │
   ├── config.json - holds configuration for training
   ├── parse_config.py - class to handle config file and cli options
@@ -115,7 +116,8 @@ Config files are in `.json` format:
       "data_dir": "data/",             // dataset path
       "batch_size": 64,                // batch size
       "shuffle": true,                 // shuffle training data before splitting
-      "validation_split": 0.1          // size of validation dataset. float(portion) or int(number of samples)
+      "validation_split": 0.1,         // size of validation dataset. float(portion) or int(number of samples)
+      "test_split": 0.2,               // size of test dataset. float(portion) or int (number of samples)
       "num_workers": 2,                // number of cpu processes to be used for data loading
     }
   },
