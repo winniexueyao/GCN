@@ -8,7 +8,6 @@ import model.metric as module_metric
 import model.model as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
-from utils import prepare_device
 
 
 # fix random seeds for reproducibility
@@ -44,6 +43,7 @@ def main(config):
                       config=config,
                       data_loader=data_loader,
                       valid_data_loader=valid_data_loader,
+                      test_data_loader=test_data_loader,
                       lr_scheduler=lr_scheduler)
 
     trainer.train()
@@ -64,9 +64,9 @@ def main(config):
     log = {'loss': test_output['total_loss'] / test_output['n_samples']}
     log.update({
         met.__name__: test_output['total_metrics'][i].item() / test_output['n_samples'] \
-            for i, met in enumerate(test_metrics)
-    })
-    logger.info(log)
+            for i, met in enumerate(test_metrics)})
+    value_format = ''.join(['{:15s}: {:.2f}\t'.format(k, v) for k, v in log.items()])
+    logger.info('    {:15s}: {}'.format('test', value_format))
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
