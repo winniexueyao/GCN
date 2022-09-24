@@ -1,22 +1,35 @@
-import torch.nn as nn
-import torch.nn.functional as F
+import torch
+from torch import nn
+from layers import GraphConvolution
+from torch.nn import functional as F
 from base import BaseModel
+import numpy as np
 
 
 class MnistModel(BaseModel):
-    def __init__(self, num_classes=10):
-        super().__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, num_classes)
+    """
+    MixHop: Higher-Order Graph Convolutional Architectures via Sparsified Neighborhood Mixing.
+    :param args: Arguments object.
+    :param feature_number: Feature input number.
+    :param class_number: Target class number.
+    """
 
-    def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
+    def __init__(self, nfeat,  nclass): 
+        super().__init__()
+        # self.args = args
+        self.feature_number=nfeat
+        self.class_number = nclass
+        self.gc = GraphConvolution(self.nfeat, self.nclass)
+
+    def forward(self, normalized_adjacency_matrix, features):
+        """
+        Forward pass.
+        :param normalized adjacency_matrix: Target matrix as a dict with indices and values.
+        :param features: Feature matrix.
+        :return predictions: Label predictions.
+                latent_features: latent representations of nodes
+        """ 
+        
+        x = F.relu(self.gc(features, normalized_adjacency_matrix))
+        x=np.inner(x[0], x[1])#?
         return F.log_softmax(x, dim=1)
